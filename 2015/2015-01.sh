@@ -4,6 +4,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+# https://adventofcode.com/2015/day/1
+# --- Day 1: Not Quite Lisp ---
 is_basement() {
 	local open="$1"
 	local closed="$2"
