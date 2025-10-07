@@ -6,13 +6,11 @@
 
 # https://adventofcode.com/2015/day/3
 # --- Day 3: Perfectly Spherical Houses in a Vacuum ---
-declare -A location
 declare -A houses
-
-location=( [x]=0 [y]=0 )
 
 set_current_location() {
 	local move="$1"
+	local -n location=$2
 	local x="${location[x]}"
 	local y="${location[y]}"
 
@@ -37,15 +35,38 @@ set_current_location() {
 	esac
 }
 
+add_house() {
+	local -n location=$1
+	local house
+
+	house="${location[x]},${location[y]}"
+	(( houses["$house"] += 1 ))
+}
+
 main() {
+	local i=0
+	declare -A santa_location
+	declare -A robo_location
+
+	santa_location=( [x]=0 [y]=0 )
+	robo_location=( [x]=0 [y]=0 )
+
 	while IFS= read -r -n1 move; do
 		local house
-		set_current_location "$move"
 
-		house="${location[x]},${location[y]}"
-		(( houses["$house"] += 1 ))
-		echo "x=${location[x]}, y=${location[y]} c=${houses["$house"]}"
+		if (( i % 2 == 0 )); then
+			set_current_location "$move" santa_location
+			add_house santa_location
+		else
+			set_current_location "$move" robo_location
+			add_house robo_location
+		fi
+
+		if [[ "$1" -eq 2 ]]; then
+			(( i++ ))
+		fi
 	done
+
 	local unique_houses="${#houses[@]}"
 	echo "$unique_houses"
 }
