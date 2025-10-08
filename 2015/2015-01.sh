@@ -18,15 +18,15 @@ is_basement() {
 main() {
 	local open
 	local closed
-	local lenght
+	local length
 
 	while IFS= read -r -n1 parenthesis; do
 		if [[ "$parenthesis" == "(" ]]; then
 			(( open += 1 ))
-			(( lenght += 1 ))
+			(( length += 1 ))
 		elif [[ "$parenthesis" == ")" ]]; then
 			(( closed +=1 ))
-			(( lenght += 1 ))
+			(( length += 1 ))
 		fi
 
 		if is_basement "$open" "$closed"; then
