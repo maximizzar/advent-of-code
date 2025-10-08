@@ -13,52 +13,60 @@ usage() {
 
 calc_hash() {
 	local secret_key="$1"
-	local inaccuracy="$2"
-	local i="$3"
+	local batch_size="$3"
 
-	local hash
-	hash=$(echo -n "${secret_key}${i}" | md5sum | awk '{print $1}')
-	if [[ "$hash" =~ $inaccuracy ]]; then
-		echo "$i"
-	fi
-}
-
-main() {
-	local secret_key="$1"
-	local inaccuracy="^0{$2}[^0]"
-
-	local batch_index=1
-	local batch_size="${3:-64}"
+	local batch_index="$4"
 
 	local batch_factor
 	local batch_start
 	local batch_end
 
+	batch_factor=$(( batch_index * batch_size ))
+	batch_start=$(( batch_factor - batch_size ))
+	batch_end=$(( batch_factor - 1 ))
+
+	local hash
+	local inaccuracy="^0{$2}[^0]"
+	for (( i=batch_start; i <= batch_end; i++ )); do
+		hash=$(echo -n "${secret_key}${i}" | md5sum | awk '{print $1}')
+		if [[ "$hash" =~ $inaccuracy ]]; then
+			echo "$i"
+			return 0
+		fi
+	done
+}
+
+main() {
+	local secret_key="$1"
+	local inaccuracy="$2"
+
+	local batch_index=1
+	local batch_size="$3"
+	local jobs="${4:-$(nproc 2>/dev/null)}"
+
+	local jobs_start
+	local jobs_end
+
 	export -f calc_hash
 
-	# TODO: put this into calc hash
-	# TODO: make "super batches" based on CPU core count
-	# so each subshell can run through batch_size of calulations and not only one
-	# because subshell generation is expensive!
 	while :; do
-		batch_factor=$(( batch_index * batch_size ))
-		batch_start=$(( batch_factor - batch_size ))
-		batch_end=$(( batch_factor - 1 ))
+		(( jobs_start = batch_index ))
+		(( jobs_end = batch_index + jobs - 1 ))
+		(( batch_index += jobs ))
 
-		mapfile -t output< <(parallel calc_hash "$secret_key" "$inaccuracy" {1} {2} ::: $(seq "$batch_start" "$batch_end"))
+		mapfile -t output< <(parallel calc_hash "$secret_key" "$inaccuracy" "$batch_size" '{1}' '{2}' '{3}' ::: $(seq "$jobs_start" "$jobs_end"))
 
-		echo "Procress [$batch_start $batch_end] -> ${#output}"
+		echo "Procress [$(( (jobs_start - 1) * batch_size )) - $(( jobs_end * batch_size - 1 ))] -> ${#output}"
 
 		if [[ "${#output}" -gt 0 ]]; then
 			echo "${output[@]}"
 			return 0
 		fi
-
-		(( batch_index++ ))
+		sleep .75
 	done
 }
 
-if [[ "$#" -ne 2 ]]; then
+if [[ "$#" -lt 2 ]]; then
 	usage && exit 1
 fi
 
