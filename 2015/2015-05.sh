@@ -85,10 +85,29 @@ check_string() {
 	return 0
 }
 
+check_string_too() {
+	local string="$1"
+	local len="${2:-2}"
+
+	local check_1=0
+	local check_2=0
+
+	# two letters without overlapping
+	grep -qP '([A-Za-z]{2}).*\1' <<< "$string" || check_1=1
+
+	# one letter which repeats with exactly one letter between them
+	grep -qP '([A-Za-z]).\1' <<< "$string" || check_2=1
+
+	if [[ "$check_1" -eq 0 ]] && [[ "$check_2" -eq 0 ]]; then
+		return 0
+	fi
+	return 1
+}
+
 main() {
 	if [[ "$#" -eq 1 ]]; then
 		local string="$1"
-		if check_string "$string"; then
+		if check_string_too "$string"; then
 			echo "$string"
 			return 0
 		fi
@@ -96,16 +115,23 @@ main() {
 	fi
 
 	local nice_strings
+	local nice_strings_too
 
 	while IFS= read -r string; do
 		echo "Check string: $string"
 		if check_string "$string"; then
 			(( nice_strings++ ))
 		fi
+		if check_string_too "$string"; then
+			(( nice_strings_too++ ))
+		fi
 		echo "Done!"
 		echo ""
 	done
-	echo "There are $nice_strings strings nice"
+	#echo "There are $nice_strings strings nice"
+	echo "There are $nice_strings_too strings nice too"
+
+
 }
 
 main "$@"
