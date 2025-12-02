@@ -10,8 +10,12 @@ use days::*;
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
+	#[arg(short, long, global = true)]
+	///Use Logic for Part 2
+	part_2: bool,
 	#[command(subcommand)]
 	command: Commands,
+
 }
 
 #[derive(Subcommand)]
@@ -26,13 +30,7 @@ fn main() {
 	println!("AoC 2025!");
 	let cli = Cli::parse();
 	match &cli.command {
-		Commands::Day01 { .. } => {
-			println!("Day 01");
-			day01::part1("day01");
-		}
-		Commands::Day02 {} => {
-			println!("Day 02");
-			day02::part1("day02");
-		}
+		Commands::Day01 => day01::main(cli.part_2),
+		Commands::Day02 => day02::part1("day02"),
 	}
 }

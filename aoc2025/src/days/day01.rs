@@ -1,63 +1,112 @@
 // SPDX-FileCopyrightText: 2025 maximizzar <mail@maximizzar.de>
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
+use std::io;
+use std::io::{BufRead};
+use std::str::FromStr;
+use Direction::{Left, Right};
 
-use std::{fmt, io};
-use std::io::BufRead;
-
-#[derive(Debug)]
-struct Dial(u8); // 0..99
+struct Dial {
+    position: i64,
+    min: i64,
+    max: i64,
+    zero_passes: i64,
+}
 
 impl Dial {
-    fn new(value: u8) -> Self {
-        Self(value % 100)
+    fn new(position: i64, min: i64, max: i64) -> Self {
+        Self{position, min, max, zero_passes: 0 }
     }
+    fn rotate(&mut self, rotation: Rotation) {
+        let range = self.max - self.min + 1;
 
-    fn rotate(&mut self, rotation: &str) -> Result<(), String> {
-        if rotation.len() < 2 {
-            return Err("Rotation too short".to_string());
-        }
+        let full_rotations = rotation.rotations / range;
+        let partial_rotations = rotation.rotations % range;
 
-        let dir = rotation.chars().next().unwrap();
-        let dist: u32 = rotation[1..]
-            .parse()
-            .map_err(|_| "Invalid distance".to_string())?;
+        println!("full_rotations: {}", full_rotations);
+        println!("partial_rotations: {}", partial_rotations);
 
-        match dir {
-            'L' => self.0 = ((100 + self.0 as u32 - (dist % 100)) % 100) as u8,
-            'R' => self.0 = ((self.0 as u32 + (dist % 100)) % 100) as u8,
-            _ => return Err("Invalid direction, must be L or R".to_string()),
-        }
+        let zero_based = self.position - self.min;
+        let extra_passes = match rotation.direction {
+            Left => if zero_based - partial_rotations < 0 { 1 } else { 0 },
+            Right => if zero_based + partial_rotations >= range { 1 } else { 0 },
+        };
 
-        Ok(())
-    }
+        // Update total zero passes
+        self.zero_passes += full_rotations + extra_passes;
 
-    fn value(&self) -> u8 {
-        self.0
-    }
-}
-
-impl fmt::Display for Dial {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        // Update Dial position
+        self.position = match rotation.direction {
+            Left => (zero_based - partial_rotations).rem_euclid(range) + self.min,
+            Right => (zero_based + partial_rotations).rem_euclid(range) + self.min,
+        };
     }
 }
 
-pub fn part1(_input: &str) {
+enum Direction {
+    Left,
+    Right,
+}
+
+struct Rotation {
+    direction: Direction,
+    rotations: i64,
+}
+
+impl Rotation {
+    fn new(direction: Direction, rotations: i64) -> Self {
+        Self{direction, rotations}
+    }
+}
+
+impl FromStr for Rotation {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let dir_char = s.chars().next().unwrap();
+        let num_str = &s[1..];
+        let num = num_str.parse().map_err(|_|
+            format!("Invalid number: {}", num_str))?;
+
+        let direction: Result<Direction, Self::Err> = match dir_char {
+            'L' => {
+                Ok(Left)
+            },
+            'R' => {
+                Ok(Right)
+            }
+            _ => {
+                Err("Invalid direction".to_string())?
+
+            }
+        };
+        Ok(Self::new(direction?, num))
+    }
+}
+
+fn process_line(dial: &mut Dial, line: &str) -> usize {
+    if let Ok(rotation) = Rotation::from_str(line) {
+        dial.rotate(rotation);
+        if dial.position == 0 {
+            return 1usize
+        }
+    }
+    0usize
+}
+
+pub fn main(part2: bool) {
     let stdin = io::stdin();
-    let mut dial = Dial::new(50);
-    let mut password: u16 = 0;
+    let mut dial = Dial::new(50, 0, 99);
+    let mut password: usize = 0;
 
+    println!("The dial starts by pointing at {}", dial.position);
     for line in stdin.lock().lines() {
         if let Ok(rotation_string) = line {
-            if let Err(e) = dial.rotate(rotation_string.as_str().trim()) {
-                println!("Error: {}", e);
-            } else {
-                if dial.value() == 0 {
-                    password += 1;
-                }
-            }
+            password += process_line(&mut dial, rotation_string.as_str());
+            println!("{}", dial.position);
         }
     }
-    println!("The password is: {}", password);
+    match part2 {
+        true => println!("{}", dial.zero_passes),
+        false => println!("{}", password),
+    }
 }
