@@ -2,6 +2,14 @@
 
 declare -A wires=()
 
+# TODO: 1. Alle Regeln in eine Datenstruktur bringen und als liste einlesen
+#       2. Über jede regel Laufen
+#           1 .Regeln mit keinen unbekannten Eingängen ausführen
+#           2. Regeln löschen wenn ausgeführt
+#
+# ein array welches Operand und Eingänge hält
+# ein array welches wie jetzt auch die kable zustände hält.
+
 parse_line() {
     expression_str="$1"
     key="${2#"${2%%[![:space:]]*}"}"
@@ -20,14 +28,13 @@ parse_line() {
         fi
 
         # Handle Other Operators
-        # TODO: fix getting stored vars back for calc
         case "$b" in
         AND)
-            wires[$key]=$((${wires[$a]} & ${wires[$c]}))
+            wires[$key]=$((wires[$a] & wires[$c]))
             ;;
 
         OR)
-            wires[$key]=$((${wires[$a]} | ${wires[$c]}))
+            wires[$key]=$((wires[$a] | wires[$c]))
             ;;
 
         LSHIFT)
@@ -42,7 +49,7 @@ parse_line() {
             return 1
             ;;
         esac
-    done <<<$expression_str
+    done <<<"$expression_str"
 }
 
 main() {
@@ -52,7 +59,9 @@ main() {
     done
 
     for wire in "${!wires[@]}"; do
-        echo "${wire}=${wires[$wire]}"
+        if [[ "$wire" = "a" ]]; then
+            echo "${wire}=${wires[$wire]}"
+        fi
     done
 }
 
