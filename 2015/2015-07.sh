@@ -4,12 +4,12 @@ declare -A wires=()
 
 parse_line() {
     expression_str="$1"
-    key="$2"
+    key="${2#"${2%%[![:space:]]*}"}"
 
     while IFS=' ' read -r a b c; do
         # Handle NOT Operator
         if [[ "$a" == "NOT" ]]; then
-            wires[$key]=$((!b))
+            wires[$key]=$(((~wires[$b]) & 0xFFFF))
             return 0
         fi
 
@@ -23,20 +23,19 @@ parse_line() {
         # TODO: fix getting stored vars back for calc
         case "$b" in
         AND)
-            echo "${wires[$a]} AND ${wires[$c]} ->"
-            #wires[$key]=$((${!wires[$a]} & ${!wires[$c]}))
+            wires[$key]=$((${wires[$a]} & ${wires[$c]}))
             ;;
 
         OR)
-            wires[$key]=$((a | c))
+            wires[$key]=$((${wires[$a]} | ${wires[$c]}))
             ;;
 
         LSHIFT)
-            wires[$key]=$((a << c))
+            wires[$key]=$((wires[$a] << c))
             ;;
 
         RSHIFT)
-            wires[$key]=$((a >> c))
+            wires[$key]=$((wires[$a] >> c))
             ;;
 
         *)
@@ -49,7 +48,7 @@ parse_line() {
 main() {
 
     while read -r line; do
-        parse_line "${line%%->*}" "${line##*->}"
+        parse_line "${line%%->*}" "${line##*->}" || break
     done
 
     for wire in "${!wires[@]}"; do
